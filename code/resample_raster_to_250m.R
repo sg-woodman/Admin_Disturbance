@@ -30,5 +30,5 @@ cflux_250 <- terra::crop(cflux_250, aou)
 
 # Save output -------------------------------------------------------------
 
-writeRaster(cflux_250, here("data/processed/aou_cflux_250.tif"), overwrite = T)
+writeRaster(cflux_250, here("data/processed/aou_cflux_250m.tif"), overwrite = T)
 

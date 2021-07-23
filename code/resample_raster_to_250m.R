@@ -18,6 +18,7 @@ library(terra)
 
 # Load data ---------------------------------------------------------------
 
+aou <- vect(here("data/raw/AoU.gpkg"))
 cflux_30 <- rast(here("data/raw/aou_cflux_30.tif"))
 r_250 <- rast(here("data/raw/raster_250m_template.tif")) # originally from MODIS pheno data
 
@@ -25,7 +26,9 @@ r_250 <- rast(here("data/raw/raster_250m_template.tif")) # originally from MODIS
 
 cflux_250 <- terra::resample(cflux_30, r_250, method = "bilinear")
 
+cflux_250 <- terra::crop(cflux_250, aou)
+
 # Save output -------------------------------------------------------------
 
-writeRaster(cflux_250, here("data/processed/aou_clux_250.tif"))
+writeRaster(cflux_250, here("data/processed/aou_cflux_250.tif"), overwrite = T)
 

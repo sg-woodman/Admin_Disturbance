@@ -14,7 +14,6 @@ library(tidyverse)
 library(here)
 library(sf)
 library(terra)
-library(purrr)
 
 # Load data ---------------------------------------------------------------
 
@@ -45,10 +44,14 @@ all_dist <- raw_dist_files %>%
   map(st_read) %>% 
   map(combine_dist_polygons) %>% 
   reduce(bind_rows) %>% 
+  # filter to years of C flux data
   filter(between(Year, 2001, 2019)) %>% 
-  st_transform(., 3269)
+  # project to match project crs
+  st_transform(., 4269) %>% 
+  # create column with 1 in all rows for rasterizing
+  mutate(count = 1)
 
 # Save output -------------------------------------------------------------
 
-st_write(all_dist, here("data/processed/all_dist_2001-2019.gpkg"))
+st_write(all_dist, here("data/processed/all_dist_2001-2019.gpkg"), overwrite = T)
 

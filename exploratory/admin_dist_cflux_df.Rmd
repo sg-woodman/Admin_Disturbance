@@ -1,0 +1,184 @@
+---
+title: "Explore Admin, Dist, C-flux df"
+author: "Sam Woodman"
+editor_options:
+  chunk_output_type: console
+output: html_document
+---
+
+## Description: 
+
+Using the dataframe created from the stacked admin, dist, C-flux rasters we 
+can explore some initial plots and sumamries of the data. Questions and findings
+here will provide a starting off point for future analyses. The ultimate aim of
+the project is to determine if land management and disturbance interact to 
+increase or decrease C-flux across the landscape.
+
+### Packages 
+
+```{r}
+library(tidyverse)
+library(here)
+library(knitr)
+library(ggridges)
+```
+
+
+### Load data
+
+This data represents 250m pixels of total C-flux from 2001 to 2019, number of 
+disturbance events that have occurred in each pixel for that time period, and 
+the land management type. 
+
+```{r}
+cad_df <- read_csv(here("data/processed/cflux_admin_dist_df.csv"))
+```
+
+
+#### How many pixels of each land zone are within the data?
+
+```{r}
+cad_df %>% 
+  group_by(zone) %>% 
+  tally(name = "n_pixels") %>% 
+  mutate(area = n_pixels*(250*250)) %>% 
+  arrange(desc(area)) %>% 
+  kable()
+
+zone_to_remove <- c("National Park", "Wilderness Area", 
+                    "National Marine Conservation Area", 
+                    "National Wildlife Area")
+```
+
+Four land zones have fewer than 100 pixels. Given the magnitude of the other 
+groups these four should likely be removed.
+
+#### What is the distribution of disturbance counts across zones
+
+```{r}
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  #mutate(zone = str_replace(zone, "Recommended ", "")) %>% 
+  group_by(zone, count) %>% 
+  tally(name = "n_pixels") %>% 
+  mutate(freq = n_pixels/sum(n_pixels)) %>% 
+  ggplot(aes(x = count, y = freq)) + 
+  geom_col() + 
+  labs(x = "Number of disturbances", 
+       y = "Proportion of events")  +
+  facet_wrap(~zone) + 
+  theme_bw()
+
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  mutate(zone = str_replace(zone, "Recommended ", "")) %>% 
+  ggplot(aes(x = count, y = zone)) + 
+  geom_density_ridges(rel_min_height = 0.01) + 
+  theme_bw()
+```
+
+#### What proportion of pixels experience disturbance?
+
+```{r}
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  mutate(zone = str_replace(zone, "Recommended ", "")) %>% 
+  group_by(zone, count) %>% 
+  tally(name = "n_pixels") %>% 
+  mutate(dist_binary = if_else(count >= 1, "Disturbed", "Non-disturbed")) %>% 
+  group_by(zone, dist_binary) %>% 
+  summarise(n_pixels = sum(n_pixels)) %>% 
+  mutate(freq = n_pixels/sum(n_pixels)) %>% 
+  filter(dist_binary == "Disturbed") %>% 
+  ggplot(aes(x = freq, y = reorder(zone, freq))) + 
+  geom_col() + 
+  labs(x = "Proportion of pixels disturbed", 
+       y = "") + 
+  theme_bw()
+```
+
+
+#### How often do disturabnces occur across each land zone?
+
+```{r}
+## plot mean ± se for number of disturbances by zone
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  group_by(zone) %>% 
+  summarise(mean_dist = mean(count),
+            sd_dist = sd(count),
+            n_dist = n(),
+            se_dist = sd_dist/sqrt(n_dist),
+            quant = quantile(count, c(0.025, 0.5, 0.975)), 
+            q = c(0.025, 0.5, 0.975)) %>% 
+  pivot_wider(names_from = q, values_from = quant, names_prefix = "q_") %>% 
+  ggplot(aes(x = mean_dist, y = reorder(zone, mean_dist), size = n_dist)) + 
+  geom_point() + 
+  geom_errorbar(aes(xmin = mean_dist - se_dist, xmax = mean_dist + se_dist), 
+                size = 0.5) +
+  ylab("") + 
+  xlab("Mean (± SE) number of disturbances") + 
+  labs(size = "Number of\npixels") + 
+  theme_bw()
+
+
+## boxplot of number of disturbances by zone
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  group_by(zone) %>% 
+  ggplot(aes(x = count, y = reorder(zone, count))) + 
+  geom_boxplot() + 
+  ylab("") + 
+  xlab("Mean (± SE) number of disturbances") + 
+  theme_bw()
+
+```
+
+Far north protected areas appear to expereince the most disturbances while 
+provincial parks experience the fewest. However, as illustrated by the point size, 
+there is a clear imbalance in the data resulting in some zone having much narrower
+error bars. 
+
+
+#### Does combining recommended and existing zone change the data substantially?
+
+```{r}
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  mutate(zone = str_replace(zone, "Recommended ", "")) %>% 
+  group_by(zone) %>% 
+  tally(name = "n_pixels") %>% 
+  mutate(area = n_pixels*(250*250)) %>% 
+  arrange(desc(area)) %>% 
+  kable()
+
+cad_df %>% 
+  filter(!zone %in% zone_to_remove) %>% 
+  mutate(zone = str_replace(zone, "Recommended ", "")) %>% 
+  group_by(zone) %>% 
+  summarise(mean_dist = mean(count),
+            sd_dist = sd(count),
+            n_dist = n(),
+            se_dist = sd_dist/sqrt(n_dist),
+            quant = quantile(count, c(0.025, 0.5, 0.975)), 
+            q = c(0.025, 0.5, 0.975)) %>% 
+  pivot_wider(names_from = q, values_from = quant, names_prefix = "q_") %>% 
+  ggplot(aes(x = mean_dist, y = reorder(zone, mean_dist), size = n_dist)) + 
+  geom_point() + 
+  geom_errorbar(aes(xmin = mean_dist - se_dist, xmax = mean_dist + se_dist), 
+                size = 0.5) +
+  ylab("") + 
+  xlab("Mean (± SE) number of disturbances") + 
+  labs(size = "Number of\npixels") + 
+  theme_bw()
+```
+
+Combining Recommended Provincial Parks with Provincial Parks and Recommended 
+Conservation Reserves with Conservation Reserves naturally increase the pixel 
+count for each group. For summary of number of disturbances the only noticeable
+change is that Recommended Provincial Parks, which experienced more disturbances
+than General Use Area, were incorporated into Provincial Parks. 
+
+
+
+

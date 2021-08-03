@@ -56,7 +56,10 @@ admin_cflux_dist_ha_df <- admin_zone_nolakes %>%
                                   "Provincial Park",
                                   "Conservation Reserve"))) %>% 
   na.omit() %>% 
-  filter(cflux_mean != 0)
+  filter(cflux_mean != 0) %>% 
+  mutate(zone = as.character(zone),
+         zone = if_else(zone == "Indian Reserve", "Indigenous Reserve", zone),
+         zone = as.factor(zone))
 
 # Save output -------------------------------------------------------------
 

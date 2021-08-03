@@ -1,0 +1,285 @@
+---
+title: "Explore C-flux Results"
+author: "Sam Woodman"
+editor_options:
+  chunk_output_type: console
+output: html_document
+theme: lumen
+---
+
+```{r include = FALSE}
+knitr::opts_chunk$set(echo=FALSE)
+```
+
+
+## Description: 
+
+Using the dataframe created from per hectare C-flux and disturbance history 
+(2001 - 2019) for land administration zones in Ontario we explore possible 
+questions to include in a future manuscript. The ultimate aim of the project is 
+to determine if land management and disturbance interact to increase or decrease 
+C-flux across the landscape.
+
+### Packages 
+
+```{r packages, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(here)
+library(knitr)
+library(ggridges)
+library(ggsci)
+library(spaMM)
+library(modelbased)
+```
+
+
+### Load data
+
+This data represents mean megagrams of CO~2~ emissions per ha from 2001 to 2019, 
+for land management zones in Ontario. The mean proportion of each management 
+zone was also calculated across the period of C-flux data (2001 - 2019).
+
+```{r load, message=FALSE, warning=FALSE}
+cad_poly_df <- read_csv(here("data/processed/admin_cflux_dist_poly_ha_df.csv"))
+cad_poly_df$zone <- relevel(as.factor(cad_poly_df$zone), "General Use Area")
+skimr::skim(cad_poly_df)
+```
+
+#### What does each land management zone mean in terms of regualtion and protection?
+
+* General Use Area
+  + 
+* Enhanced Management Area
+  + 
+* Indigenous Reserves [1](https://www.sac-isc.gc.ca/eng/1587563382582/1587563402582)
+  + [Provincial law requires consultation with First Nation and Metis people 
+  during environmental assessment](https://www.ontario.ca/page/environmental-assessments-consulting-indigenous-communities)
+* Provincial Parks [1](http://bmfci.ca/phocadownloadpap/Bancroft-HCV-assessment-Vers1-2012Sep.pdf) [2](https://www.iucn.org/downloads/ontario.pdf)
+  + Regulated and forestry activities not allowed
+  + Objectives set by Ontario government
+    + To permanently protect representative ecosystems, biodiversity and provincially significant elements of Ontario’s natural and cultural heritage, and to manage these areas to ensure that ecological integrity is maintained.
+    + To provide opportunities for ecologically sustainable outdoor recreation opportunities and encourage associated economic benefits.
+    + To provide opportunities for residents of Ontario and visitors to increase their knowledge and appreciation of Ontario’s natural and cultural heritage.
+    + To facilitate scientific research and provide points of reference to support the monitoring of ecological change on the broader landscape.30
+* Conservation Reserves [1](http://bmfci.ca/phocadownloadpap/Bancroft-HCV-assessment-Vers1-2012Sep.pdf) [2](https://www.iucn.org/downloads/ontario.pdf)
+  + Regulated and forestry activites not allowed
+  + Objectives set by Ontario government
+    + To permanently protect representative ecosystems, biodiversity and provincially significant elements of Ontario’s natural and cultural heritage, and to manage these areas to ensure that ecological integrity is maintained.
+    + To provide opportunities for ecologically sustainable land uses, including traditional outdoor heritage activities and associated economic benefits.
+    + To facilitate scientific research and provide points of reference to support the monitoring of ecological change on the broader landscape.36
+
+
+#### Are administration zones consistent in size
+
+```{r size_analysis}
+cad_poly_df %>% 
+  group_by(zone) %>% 
+  summarise(mean_area = mean(area_ha, na.rm = T),
+            sd_area = sd(area_ha),
+            n_area = n(),
+            se_area = sd_area/sqrt(n_area)) %>% 
+  ggplot(aes(x = mean_area, y = zone)) + 
+  geom_col() + 
+  geom_errorbar(aes(xmin = mean_area - se_area, 
+                    xmax = mean_area + se_area)) +
+  scale_x_log10(expand = c(0,0),
+                limits = c(1, 1000000)) + 
+  xlab("Log mean (±SE) area (ha)") + 
+  ylab("") + 
+  theme_bw() + 
+  theme(text = element_text(size=12))
+
+cad_poly_df %>% 
+  ggplot(aes(x = area_ha, y = zone)) + 
+  geom_density_ridges(rel_min_height = 0.01) +
+  scale_x_log10() +
+  xlab("Log area (ha)") + 
+  ylab("") + 
+  theme_bw()
+
+summary(lm(log(area_ha) ~ zone, data = cad_poly_df))
+estimate_contrasts(lm(log(area_ha) ~ zone, data = cad_poly_df), 
+                   transform = "response")
+```
+
+Administration zones are not equal in size across the AoU. General Use Areas are
+the largest while Indigenous Reserves, Provincial Parks, and Conservation 
+Reserves are the smallest. 
+
+The difference in size between the zones suggests that a per area approach is 
+needed for modelling to standardize C-fluxes.
+
+
+#### Are administration zones evenly distributed across Ontario?
+```{r space_analysis}
+cad_poly_df %>% 
+  group_by(zone) %>% 
+  summarise(mean_lat = mean(lat, na.rm = T),
+            sd_lat = sd(lat),
+            n_lat = n(),
+            se_lat = sd_lat/sqrt(n_lat),
+            mean_lon = mean(lon, na.rm = T),
+            sd_lon = sd(lon),
+            n_lon = n(),
+            se_lon = sd_lon/sqrt(n_lon)) %>% 
+  ggplot(aes(x = mean_lon, y = mean_lat, colour = zone)) + 
+  geom_point(size = 2) + 
+  geom_errorbar(aes(ymin = mean_lat - se_lat, 
+                    ymax = mean_lat + se_lat, 
+                    width = 0.2)) + 
+  geom_errorbarh(aes(xmin = mean_lon - se_lon, 
+                     xmax = mean_lon + se_lon, 
+                     height = 0.05)) + 
+  xlab("Mean (±SE) longitude") + 
+  ylab("Mean (±SE) latitude") + 
+  labs(colour = "")  +
+  scale_color_jco() + 
+  theme_bw() + 
+  theme(text = element_text(size=12))
+
+
+summary(lm(lat ~ zone, data = cad_poly_df))
+estimate_contrasts(lm(lat ~ zone, data = cad_poly_df))
+summary(lm(lon ~ zone, data = cad_poly_df))
+estimate_contrasts(lm(lon ~ zone, data = cad_poly_df))
+
+```
+
+Administration zones are not evenly spread across space. Indigenous Reserves, on
+average, are located at more northern latitudes and more western longitudes than
+the other zones. Conversely, Enhanced Management Areas are, on average, at more
+eastern longitudes. 
+
+Though these difference may suggest something about the location of each 
+administration zone across Ontario (for example where different management 
+strategies are favoured) any difference in lat/lon coordiantes will be accounted 
+for in spatail models. 
+
+#### Do administration zones experience different proportions of disturbance?
+
+```{r prop_dist_analysis, message=FALSE, warning=FALSE}
+cad_poly_df %>% 
+  ggplot(aes(x = mean_prop_dist, y = zone)) + 
+  geom_boxplot() +
+  xlab("Mean proportion disturbed from 2001 to 2019") + 
+  ylab("") +
+  theme_bw() + 
+  theme(text = element_text(size=12))
+  
+cad_poly_df %>% 
+  group_by(zone) %>% 
+  summarise(mean_dist = mean(mean_prop_dist, na.rm = T),
+            sd_dist = sd(mean_prop_dist, na.rm = T),
+            n_dist = n(),
+            se_dist = sd_dist/sqrt(n_dist)) %>% 
+  ggplot(aes(x = mean_dist, y = zone)) + 
+  geom_col() + 
+  geom_errorbar(aes(xmin = mean_dist - se_dist, xmax = mean_dist + se_dist)) +
+  scale_x_continuous(expand = c(0,0),
+                     limits = c(0, 0.1)) +
+  xlab("Mean (±SE) proportion disturbed from 2001 to 2019") + 
+  ylab("") + 
+  theme_bw() + 
+  theme(text = element_text(size=12))
+
+cad_poly_df %>% 
+  ggplot(aes(x = mean_prop_dist, y = zone)) + 
+  geom_density_ridges(rel_min_height = 0.01) + 
+  xlab("Mean proportion disturbed from 2001 to 2019") + 
+  ylab("") + 
+  theme_bw()
+  
+summary(lm(sqrt(mean_prop_dist) ~ zone, data = cad_poly_df))
+```
+
+No, between the five adminstration zones in the study there appear to be no 
+differences in the mean proportion disturbed. 
+
+#### Do administration zones show different frequencies of disturbance
+
+```{r n_dist_analysis}
+cad_poly_df %>% 
+  ggplot(aes(x = n_dist, y = zone)) + 
+  geom_boxplot() +
+  xlab("Number of years between 2001 and 2019 with disturbance") + 
+  ylab("") +
+  theme_bw() + 
+  theme(text = element_text(size=12))
+
+cad_poly_df %>% 
+  group_by(zone) %>% 
+  summarise(num_dist = mean(n_dist, na.rm = T),
+            sd_dist = sd(n_dist, na.rm = T),
+            n_dist = n(),
+            se_dist = sd_dist/sqrt(n_dist)) %>% 
+  ggplot(aes(x = num_dist, y = zone)) + 
+  geom_col() + 
+  geom_errorbar(aes(xmin = num_dist - se_dist, xmax = num_dist + se_dist)) +
+  scale_x_continuous(expand = c(0,0),
+                     limits = c(0, 10),
+                     breaks = seq(0,10, 2)) +
+  xlab("Mean (±SE) number of years between\n2001 and 2019 with disturbance") + 
+  ylab("") + 
+  theme_bw() + 
+  theme(text = element_text(size=12))
+
+cad_poly_df %>% 
+  ggplot(aes(x = n_dist, y = zone)) + 
+  geom_density_ridges(rel_min_height = 0.01) + 
+  xlab("Number of years between 2001 and 2019 with disturbance") + 
+  ylab("") + 
+  theme_bw()
+
+summary(lm(n_dist ~ zone, data = cad_poly_df))
+modelbased::estimate_contrasts(lm(n_dist ~ zone, data = cad_poly_df))
+```
+
+Yes, Conservation Reserves and Indigenous Reserves experience the fewest years 
+with disturbance while General Use Area has the most. These results held when 
+fitting a spatial model (spaMM package, not shown here). 
+
+#### Does disturbance alter C-flux of land administration zones?
+
+```{r spatial_model}
+spatial_mod <-
+  fitme(
+    cflux_mean ~ zone*sqrt(mean_prop_dist) +
+      Matern(1 |lon + lat),
+    data = cad_poly_df,
+    family = "gaussian", method = "REML"
+  ) 
+
+summary(spatial_mod)
+anova(aov(spatial_mod))
+
+newdat <- expand_grid(zone = cad_poly_df %>% pull(zone) %>% unique(), 
+                      mean_prop_dist = sqrt(seq(0,0.5,0.001)), 
+                      lon = cad_poly_df %>% pull(lon) %>% mean,
+                      lat = cad_poly_df %>% pull(lat) %>% mean)
+
+newdat$pred <- as.vector(predict(spatial_mod, newdat))
+
+newdat %>% 
+  ggplot(aes(x = (mean_prop_dist)^2, y = pred, colour = zone)) + 
+  geom_line(size = 1.5) + 
+  ggsci::scale_color_jco() +
+  xlab("Mean proportion disturbed from 2001 to 2019") + 
+  ylab("Megagrams CO2 emissions/ha") + 
+  labs(colour = "Land\nManagement") + 
+  theme_bw() + 
+  theme(text = element_text(size=12))
+```
+
+Yes, if we use General Use Area as a control then Conservation Reserves and 
+Provincial Parks are less impacted by natural disturbances. CR and PP are also
+the best assimilator of CO~2~ with the lowest y-intercept. Low proportions of 
+disturbance appear to have a positive effect on CO~2~ assimilation though this 
+trend weakens as disturbance increases. As disturbance reaches the maximum of 
+the range seen in our data Enhanced Management Reserves become the best 
+CO~2~ assimilators while Indigenous Reserves are the worst. 
+
+
+
+
+
+

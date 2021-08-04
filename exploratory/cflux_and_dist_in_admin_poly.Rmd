@@ -278,8 +278,40 @@ trend weakens as disturbance increases. As disturbance reaches the maximum of
 the range seen in our data Enhanced Management Reserves become the best 
 CO~2~ assimilators while Indigenous Reserves are the worst. 
 
+#### Are the results different if number of years with disturbance is used 
+instead of mean proportion area disturbed? 
+
+```{r}
+spatial_mod_ndist <-
+  fitme(
+    cflux_mean ~ zone*sqrt(n_dist) +
+      Matern(1 |lon + lat),
+    data = cad_poly_df,
+    family = "gaussian", method = "REML"
+  ) 
+
+summary(spatial_mod_ndist)
+anova(aov(spatial_mod_ndist))
+
+newdat <- expand_grid(zone = cad_poly_df %>% pull(zone) %>% unique(), 
+                      n_dist = sqrt(seq(0,19,1)), 
+                      lon = cad_poly_df %>% pull(lon) %>% mean,
+                      lat = cad_poly_df %>% pull(lat) %>% mean)
+
+newdat$pred <- as.vector(predict(spatial_mod_ndist, newdat))
+
+newdat %>% 
+  ggplot(aes(x = (n_dist)^2, y = pred, colour = zone)) + 
+  geom_line(size = 1.5) + 
+  ggsci::scale_color_jco() +
+  xlab("No. years disturbed from 2001 to 2019") + 
+  ylab("Megagrams CO2 emissions/ha") + 
+  labs(colour = "Land\nManagement") + 
+  theme_bw() + 
+  theme(text = element_text(size=12))
+```
 
 
-
-
-
+There is no longer a significant interaction between zone and disturbance history
+when using number of years with disturbance. This is not surprising since number 
+of years fails to capture the extent/severity of disturbance. 

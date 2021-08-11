@@ -83,8 +83,39 @@ admin_dist_df <- admin_dist_full_df %>%
   mutate(zone = str_replace(zone, "Recommended ", ""),
          zone = as.factor(zone))
 
+## proportion of each admin zone disturbed for each year from 2001 to 2019
+## annual proportion disturbed is also needed to determine if there is 
+## temporal synchrony of disturbance. 
+admin_dist_df_year <- admin_dist_full_df %>% 
+  group_by(ID, zone, Year) %>% 
+  # calc mean area (constant), total area disturbed, and no. of events within
+  # each unique zone and year
+  summarise(area_ha = mean(area_ha),
+            dist_area = sum(dist_area),
+            count = sum(count),
+            .groups = "drop") %>% 
+  # calc prop are disturbed
+  mutate(prop_dist = dist_area/area_ha,
+         # if prop disturbed is greater than 1 replace with 1
+         # occurs when multiple disturbances occur in a given year
+         prop_dist = if_else(prop_dist > 1, 1, prop_dist),
+         # calc binary count of dist for each year
+         n_dist = if_else(count > 0, 1, 0)) %>% 
+  # join to skeleton df
+  full_join(., skeleton_df) %>% 
+  # fill missing values created during join with 0
+  mutate(dist_area = replace_na(dist_area, 0),
+         prop_dist = replace_na(prop_dist, 0),
+         n_dist = replace_na(n_dist, 0)) %>%
+  # remove admin zones that are not prevalent 
+  filter(!zone %in% zone_to_remove) %>% 
+  # combine recommended provincial parks and conservation areas with thier
+  # full status equivalents
+  mutate(zone = str_replace(zone, "Recommended ", ""),
+         zone = as.factor(zone))
+
 # Save output -------------------------------------------------------------
 
 write_csv(admin_dist_df, here("data/processed/dist_admin_extract.csv"))
 
-
+write_csv(admin_dist_df_year, here("data/processed/dist_admin_extract_year.csv"))

@@ -1,5 +1,4 @@
 library(tidyverse)
-library(terra)
 library(sf)
 
 fri_files <- list.files(path = "/Volumes/Backup/FRI_GPKG",
@@ -25,8 +24,3 @@ fri_forest_2 <- do.call(rbind, fri_forest)
 
 st_write(fri_forest_2, "/Volumes/Backup/FRI_Forest/fri_2.gpkg")
 
-writeVector(, paste0("/Volumes/Backup/FRI_Forest", ))
-
-map2(fri_forest_1_10, fri_names[1:10], ~ writeVector(.x, 
-                                                     paste0("/Volumes/Backup/FRI_Forest/", .y),
-                                                     filetype = "GPKG"))

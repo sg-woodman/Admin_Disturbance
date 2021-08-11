@@ -43,6 +43,10 @@ zone was also calculated across the period of C-flux data (2001 - 2019).
 cad_poly_df <- read_csv(here("data/processed/admin_cflux_dist_poly_ha_df.csv"))
 cad_poly_df$zone <- relevel(as.factor(cad_poly_df$zone), "General Use Area")
 skimr::skim(cad_poly_df)
+
+admin_dist_df_year <- read_csv(here("data/processed/dist_admin_extract_year.csv"))
+admin_dist_df_year$zone <- relevel(as.factor(admin_dist_df_year$zone), "General Use Area")
+
 ```
 
 #### What does each land management zone mean in terms of regualtion and protection?
@@ -158,41 +162,42 @@ for in spatail models.
 #### Do administration zones experience different proportions of disturbance?
 
 ```{r prop_dist_analysis, message=FALSE, warning=FALSE}
-cad_poly_df %>% 
-  ggplot(aes(x = mean_prop_dist, y = zone)) + 
-  geom_boxplot() +
-  xlab("Mean proportion disturbed from 2001 to 2019") + 
-  ylab("") +
-  theme_bw() + 
-  theme(text = element_text(size=12))
-  
-cad_poly_df %>% 
-  group_by(zone) %>% 
-  summarise(mean_dist = mean(mean_prop_dist, na.rm = T),
-            sd_dist = sd(mean_prop_dist, na.rm = T),
-            n_dist = n(),
-            se_dist = sd_dist/sqrt(n_dist)) %>% 
-  ggplot(aes(x = mean_dist, y = zone)) + 
-  geom_col() + 
-  geom_errorbar(aes(xmin = mean_dist - se_dist, xmax = mean_dist + se_dist)) +
-  scale_x_continuous(expand = c(0,0),
-                     limits = c(0, 0.1)) +
-  xlab("Mean (±SE) proportion disturbed from 2001 to 2019") + 
-  ylab("") + 
+admin_dist_df_year %>% 
+  group_by(zone, Year) %>% 
+  summarise(mean_prop_dist = mean(prop_dist, na.rm = T),
+            sd_prop_dist = sd(prop_dist, na.rm = T),
+            n_prop_dist = n(),
+            se_prop_dist = sd_prop_dist/sqrt(n_prop_dist)) %>% 
+  ggplot(aes(x = Year, y = mean_prop_dist)) + 
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_prop_dist - se_prop_dist,
+                    ymax = mean_prop_dist + se_prop_dist)) + 
+  xlab("") + 
+  ylab("Mean (±SE) proportion disturbed") +
+  facet_wrap(~ zone) + 
   theme_bw() + 
   theme(text = element_text(size=12))
 
-cad_poly_df %>% 
-  ggplot(aes(x = mean_prop_dist, y = zone)) + 
+admin_dist_df_year %>% 
+  group_by(zone, Year) %>% 
+  summarise(mean_prop_dist = mean(prop_dist, na.rm = T)) %>% 
+  pivot_wider(names_from = zone, values_from = mean_prop_dist) %>% 
+  janitor::clean_names() %>% 
+  GGally::ggpairs(., 2:6)
+
+admin_dist_df_year %>% 
+  ggplot(aes(x = prop_dist, y = zone)) + 
   geom_density_ridges(rel_min_height = 0.01) + 
   xlab("Mean proportion disturbed from 2001 to 2019") + 
   ylab("") + 
+  facet_wrap(~ as.factor(Year), scales = "free_x") + 
   theme_bw()
   
-summary(lm(sqrt(mean_prop_dist) ~ zone, data = cad_poly_df))
+summary(glm(prop_dist ~ zone * Year, family = binomial(link = "sqrt"), 
+            data = admin_dist_df_year))
 ```
 
-No, between the five adminstration zones in the study there appear to be no 
+No, between the five administration zones in the study there appear to be no 
 differences in the mean proportion disturbed. 
 
 #### Do administration zones show different frequencies of disturbance

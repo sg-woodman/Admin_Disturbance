@@ -50,7 +50,7 @@ skimr::skim(cad_poly_df)
 * General Use Area
   + 
 * Enhanced Management Area
-  + 
+  + Remote access enhanced management areas are intended to maintain the remote character of selected areas. Typically, these are relatively large areas which provide the public and tourism operators with high-quality remote recreational experiences including hinting, fishing, canoeing, and camping. Given the large size, remoteness, and relative absence of roads, these areas will play a significant role in protecting wilderness values outside the parks and protected areas system.
 * Indigenous Reserves [1](https://www.sac-isc.gc.ca/eng/1587563382582/1587563402582)
   + [Provincial law requires consultation with First Nation and Metis people 
   during environmental assessment](https://www.ontario.ca/page/environmental-assessments-consulting-indigenous-communities)
@@ -230,8 +230,9 @@ cad_poly_df %>%
   ylab("") + 
   theme_bw()
 
-summary(lm(n_dist ~ zone, data = cad_poly_df))
-modelbased::estimate_contrasts(lm(n_dist ~ zone, data = cad_poly_df))
+summary(glm(n_dist ~ zone, family = "poisson", data = cad_poly_df))
+modelbased::estimate_contrasts(glm(n_dist ~ zone, family = "poisson", 
+                                   data = cad_poly_df))
 ```
 
 Yes, Conservation Reserves and Indigenous Reserves experience the fewest years 

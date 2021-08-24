@@ -40,11 +40,14 @@ for land management zones in Ontario. The mean proportion of each management
 zone was also calculated across the period of C-flux data (2001 - 2019).
 
 ```{r load, message=FALSE, warning=FALSE}
-cad_poly_df <- read_csv(here("data/processed/admin_cflux_dist_poly_ha_df.csv"))
+cad_poly_df <- read_csv(here("data/processed/admin_cflux_dist_poly_ha_df.csv")) 
 cad_poly_df$zone <- relevel(as.factor(cad_poly_df$zone), "General Use Area")
 skimr::skim(cad_poly_df)
 
-admin_dist_df_year <- read_csv(here("data/processed/dist_admin_extract_year.csv"))
+admin_dist_df_year <- read_csv(here("data/processed/dist_admin_extract_year.csv")) %>% 
+  mutate(zone = as.character(zone),
+         zone = if_else(zone == "Indian Reserve", "Indigenous Reserve", zone),
+         zone = as.factor(zone))
 admin_dist_df_year$zone <- relevel(as.factor(admin_dist_df_year$zone), "General Use Area")
 
 ```
@@ -235,7 +238,7 @@ cad_poly_df %>%
   ylab("") + 
   theme_bw()
 
-summary(glm(n_dist ~ zone, family = "poisson", data = cad_poly_df))
+summary(glm(n_dist ~ zone, family = "quasipoisson", data = cad_poly_df))
 modelbased::estimate_contrasts(glm(n_dist ~ zone, family = "poisson", 
                                    data = cad_poly_df))
 ```

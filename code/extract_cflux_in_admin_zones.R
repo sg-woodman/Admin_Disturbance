@@ -22,7 +22,7 @@ library(exactextractr)
 
 # Load data ---------------------------------------------------------------
 
-cflux_ha_30 <- raster(here("data/raw/aou_cflux_per_ha_30.tif"))
+cflux_ha_30 <- raster(here("data/processed/cflux_per_ha_30_aou.tif"))
 admin_zone_nolakes <- 
   # generated and validated using QGIS (faster than R in this case)
   st_read(here("data/processed/admin_zone_lakes-removed_valid.gpkg")) %>% 

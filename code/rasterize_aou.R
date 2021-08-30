@@ -21,7 +21,7 @@ library(terra)
 
 aou <- vect(here("data/raw/AoU.gpkg"))
 aou_lakes <- vect(here("data/raw/AoU_Lakes.gpkg"))
-cflux_250 <- rast(here("data/processed/aou_cflux_250m.tif"))
+cflux_30 <- rast(here("data/raw/aou_cflux_per_ha_30.tif"))
 
 
 # Functions ---------------------------------------------------------------
@@ -47,20 +47,21 @@ raster_aou <- function(pol, ras) {
 
 # Rasterize aou and lakes -------------------------------------------------
 
-aou_rast <- raster_aou(aou, cflux_250)
+aou_rast <- raster_aou(aou, cflux_30)
 aou_rast[aou_rast == 0] <- NA
+ext(aou_rast)
 plot(aou_rast)
 
-aou_lakes_rast <- raster_aou(aou_lakes, cflux_250)
+aou_lakes_rast <- raster_aou(aou_lakes, cflux_30)
 aou_lakes_rast[aou_lakes_rast == 1] <- NA
+ext(aou_lakes_rast)
 plot(aou_lakes_rast)
 
 
 
 # Save outputs ------------------------------------------------------------
-writeRaster(aou_rast, here("data/processed/aou_rast_250m.tif"), overwrite = T)
-writeRaster(aou_lakes_rast, here("data/processed/aou_lakes_rast_250m.tif"))
-
+writeRaster(aou_rast, here("data/processed/aou_rast_30.tif"), overwrite = T)
+writeRaster(aou_lakes_rast, here("data/processed/aou_lakes_rast_30m.tif"))
 
 
 

@@ -23,10 +23,15 @@ aou <- vect(here("data/raw/AoU.gpkg"))
 aou_lakes <- vect(here("data/raw/AoU_Lakes.gpkg"))
 cflux_30 <- rast(here("data/raw/aou_cflux_per_ha_30.tif"))
 
+aou_3161 <- vect(here("data/processed/aou_3161.gpkg"))
+aou_lakes_3161 <- vect(here("data/processed/aou_lakes_3161.gpkg"))
+cflux_250_ha_3161 <- rast(here("data/processed/aou_cflux_250m_ha_3161.tif"))
+
+
 
 # Functions ---------------------------------------------------------------
 
-raster_aou <- function(pol, ras) {
+raster_aou <- function(pol, ras, aou) {
   # Arguments: 
   # pol: polygon to rasterize
   # ras: raster to use as template for rasterizing
@@ -47,21 +52,30 @@ raster_aou <- function(pol, ras) {
 
 # Rasterize aou and lakes -------------------------------------------------
 
-aou_rast <- raster_aou(aou, cflux_30)
+aou_rast <- raster_aou(aou, cflux_30, aou)
 aou_rast[aou_rast == 0] <- NA
 ext(aou_rast)
 plot(aou_rast)
 
-aou_lakes_rast <- raster_aou(aou_lakes, cflux_30)
+aou_lakes_rast <- raster_aou(aou_lakes, cflux_30, aou)
 aou_lakes_rast[aou_lakes_rast == 1] <- NA
 ext(aou_lakes_rast)
 plot(aou_lakes_rast)
 
+aou_rast_3161 <- raster_aou(aou_3161, cflux_250_ha_3161, aou_3161)
+aou_rast_3161[aou_rast_3161 == 0] <- NA
+ext(aou_rast_3161)
+plot(aou_rast_3161)
 
+aou_lakes_rast_3161 <- raster_aou(aou_lakes_3161, cflux_250_ha_3161, aou_3161)
+aou_lakes_rast_3161[aou_lakes_rast_3161 == 1] <- NA
+ext(aou_lakes_rast_3161)
+plot(aou_lakes_rast_3161)
 
 # Save outputs ------------------------------------------------------------
 writeRaster(aou_rast, here("data/processed/aou_rast_30.tif"), overwrite = T)
 writeRaster(aou_lakes_rast, here("data/processed/aou_lakes_rast_30m.tif"))
 
-
+writeRaster(aou_rast_3161, here("data/processed/aou_rast_250_3161.tif"), overwrite = T)
+writeRaster(aou_lakes_rast_3161, here("data/processed/aou_lakes_rast_250m_3161.tif"))
 

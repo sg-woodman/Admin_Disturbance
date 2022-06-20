@@ -83,13 +83,6 @@ dist_df <- dist_extract %>%
          sr_mean_prop = if_else(is.nan(sr_mean_prop), 0, sr_mean_prop))
 
 
-  
-nsr_extract <- exact_extract(nsr_dist, catch_nolakes, 
-                             "sum", stack_apply = T)
-
-sr_extract <- exact_extract(sr_dist, catch_nolakes, 
-                            "sum", stack_apply = T)
-
 ncells <- exact_extract(sr_dist[[1]], catch_nolakes, 
                         "count")
 
@@ -106,48 +99,6 @@ admin_extract <- exact_extract(admin_rast_250_3161, catch_nolakes,
 
 catch_nolakes_centroid <- st_centroid(catch_nolakes, of_largest_polygon = T) %>% 
   st_coordinates()
-
-nsr_df <- catch_nolakes %>% 
-  st_set_geometry(NULL) %>% 
-  dplyr::select(catchment = OBJECTID) %>% 
-  bind_cols(ncells = ncells) %>% 
-  bind_cols(nsr_extract) %>% 
-  mutate(catch_area_m2 = ncells*(250*250),
-         across(contains("NSR"), ~ (.x*(250*250))/catch_area_m2)) %>% 
-  rename_with(~str_replace(., "sum.", "prop_"), contains("NSR")) %>% 
-  pivot_longer(cols = starts_with("prop"), 
-               names_to = "vars", 
-               values_to = "vals") %>% 
-  mutate(dist_binary = if_else(vals > 0, 1, 0)) %>% 
-  mutate(dist_prop = if_else(vals == 0, NA_real_, vals)) %>%
-  group_by(catchment) %>% 
-  summarise(nsr_n_dist = sum(dist_binary, na.rm = T),
-            nsr_mean_prop = mean(dist_prop, na.rm = T)) %>% 
-  mutate(nsr_mean_prop = if_else(is.nan(nsr_mean_prop), 0, nsr_mean_prop))
-
-
-nsr_df %>% group_by(nsr_n_dist) %>% tally()
-
-sr_df <- catch_nolakes %>% 
-  st_set_geometry(NULL) %>% 
-  dplyr::select(catchment = OBJECTID) %>% 
-  bind_cols(ncells = ncells) %>% 
-  bind_cols(sr_extract) %>% 
-  mutate(catch_area_m2 = ncells*(250*250),
-         across(contains("SR"), ~ (.x*(250*250))/catch_area_m2)) %>% 
-  rename_with(~str_replace(., "sum.", "prop_"), contains("SR")) %>% 
-  pivot_longer(cols = starts_with("prop"), 
-               names_to = "vars", 
-               values_to = "vals") %>% 
-  mutate(dist_binary = if_else(vals > 0, 1, 0)) %>% 
-  mutate(dist_prop = if_else(vals == 0, NA_real_, vals)) %>% 
-  group_by(catchment) %>% 
-  summarise(sr_n_dist = sum(dist_binary, na.rm = T),
-            sr_mean_prop = mean(dist_prop, na.rm = T)) %>% 
-  mutate(sr_mean_prop = if_else(is.nan(sr_mean_prop), 0, sr_mean_prop))
-
-sr_df %>% group_by(sr_n_dist) %>% tally()
-
 
 NSR_SR_01_19_catch_df <- dist_df %>% 
   bind_cols(catch_nolakes_centroid) %>% 

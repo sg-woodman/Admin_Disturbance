@@ -27,7 +27,7 @@ aou_3161 <- vect(here("data/processed/aou_3161.gpkg"))
 aou_lakes_3161 <- vect(here("data/processed/aou_lakes_3161.gpkg"))
 cflux_250_ha_3161 <- rast(here("data/processed/aou_cflux_250m_ha_3161.tif"))
 
-
+cflux_500_ha_3161 <- rast(here("data/processed/aou_cflux_500m_ha_3161.tif"))
 
 # Functions ---------------------------------------------------------------
 
@@ -72,6 +72,17 @@ aou_lakes_rast_3161[aou_lakes_rast_3161 == 1] <- NA
 ext(aou_lakes_rast_3161)
 plot(aou_lakes_rast_3161)
 
+aou_rast_3161_500 <- raster_aou(aou_3161, cflux_500_ha_3161, aou_3161)
+aou_rast_3161_500[aou_rast_3161_500 == 0] <- NA
+ext(aou_rast_3161_500)
+plot(aou_rast_3161_500)
+
+aou_lakes_rast_3161_500 <- raster_aou(aou_lakes_3161, cflux_500_ha_3161, aou_3161)
+aou_lakes_rast_3161_500[aou_lakes_rast_3161_500 == 1] <- NA
+ext(aou_lakes_rast_3161_500)
+plot(aou_lakes_rast_3161_500)
+
+
 # Save outputs ------------------------------------------------------------
 writeRaster(aou_rast, here("data/processed/aou_rast_30.tif"), overwrite = T)
 writeRaster(aou_lakes_rast, here("data/processed/aou_lakes_rast_30m.tif"))
@@ -79,3 +90,5 @@ writeRaster(aou_lakes_rast, here("data/processed/aou_lakes_rast_30m.tif"))
 writeRaster(aou_rast_3161, here("data/processed/aou_rast_250_3161.tif"), overwrite = T)
 writeRaster(aou_lakes_rast_3161, here("data/processed/aou_lakes_rast_250m_3161.tif"))
 
+writeRaster(aou_rast_3161_500, here("data/processed/aou_rast_500_3161.tif"), overwrite = T)
+writeRaster(aou_lakes_rast_3161_500, here("data/processed/aou_lakes_rast_500m_3161.tif"))

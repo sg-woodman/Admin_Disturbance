@@ -159,6 +159,13 @@ aou_raster_3161 <- rast(here("data/processed/aou_rast_250_3161.tif"))
 ## Reference vectors
 aou_3161 <- vect(here("data/processed/aou_3161.gpkg"))
 
+## Reference raster
+r_500_3161 <- rast(here("data/raw/raster_500_tamplate_3161.tif"))
+aou_lakes_raster_3161_500 <- rast(here("data/processed/aou_lakes_rast_500m_3161.tif"))
+aou_raster_3161_500 <- rast(here("data/processed/aou_rast_500_3161.tif"))
+
+## Reference vectors
+aou_3161 <- vect(here("data/processed/aou_3161.gpkg"))
 
 # Process -----------------------------------------------------------------
 
@@ -288,5 +295,55 @@ dist_poly_all_dist_3161 <- get_annual_dist_list_all_dist(all_dist_3161, 2001, 31
 dist_poly_all_dist_3161 %>% 
   walk(rasterize_dist_year_3161, rast = r_250_3161, sum_type = "PA", "All_Dist_3161", "250_3161")
 
+## raster vecto where each year is a layer
+rasterize_dist_year_3161_500 <- function(poly, rast, sum_type, dir, res) {
+  # Arguments
+  ## poly: polygon to be rasterized
+  ## rast: raster with resolution to match
+  ## sum_type: whether to sum instances of polygons at single pixel
+  ### Count = sum overlapping polygons to get count
+  ### PA = overwrite overlapping polygons, returns presence/absence
+  ## dir: Name of directory to be save in, also used in file name
+  ## res: resolution of rast used for naming
+  
+  # check polygon class and convert to terra class if needed
+  v <- if (class(poly)[1] != "SpatVector") {terra::vect(poly)} else {poly}
+  # check raster class and convert to terra class if needed
+  r <- if (class(rast)[1] != "SpatRaster") {terra::rast(rast)} else {rast}
+  # add count variable
+  # for presence/absence, 1 will be overwritten (see sum in terra::rasterize)
+  # for counting instances, 1 value for each pixel will be summed
+  v$count <- 1
+  # convert polygon to raster
+  add <- if (sum_type == "PA") FALSE else TRUE
+  r <- terra::rasterize(v, r, "count", background = 0, sum = add)
+  # crop to aou
+  cr_r <- crop(r, aou_3161)
+  # mask lakes 
+  ma_r <- terra::mask(cr_r, aou_lakes_raster_3161_500)
+  # mask values outside aou
+  aou_ma_r <- terra::mask(ma_r, crop(aou_raster_3161_500, aou_3161))
+  # write raster to disk
+  # change path when needed
+  terra::writeRaster(aou_ma_r, paste0(here("data/processed/Annual_Raster/"),
+                                      dir, "/", dir, "_", sum_type, "_", 
+                                      unique(poly$Year), "_", res, "m.tif"), 
+                     overwrite = T)
+}
 
+## Stand Replacing 500m
+dist_poly_sr_3161 <- get_annual_dist_list_stand(all_dist_3161, 2001, 3161, "SR")
+dist_poly_sr_3161 %>% 
+  walk(rasterize_dist_year_3161_500, rast = r_500_3161, sum_type = "PA", "SR_3161_500", "500_3161")
+
+## Non stand replacing
+dist_poly_nsr_3161 <- get_annual_dist_list_stand(all_dist_3161, 2001, 3161, "NSR")
+dist_poly_nsr_3161 %>% 
+  walk(rasterize_dist_year_3161_500, rast = r_500_3161, sum_type = "PA", "NSR_3161_500", "500_3161")
+
+
+## All dist
+dist_poly_all_dist_3161 <- get_annual_dist_list_all_dist(all_dist_3161, 2001, 3161, "All_Dist")
+dist_poly_all_dist_3161 %>% 
+  walk(rasterize_dist_year_3161_500, rast = r_500_3161, sum_type = "PA", "All_Dist_3161_500", "500_3161")
 

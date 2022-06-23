@@ -13,6 +13,7 @@ library(RColorBrewer)
 # Load data ---------------------------------------------------------------
 
 cad_df_3161 <- read_csv(here("data/processed/cflux_admin_dist_pixel_250m_df_3161.csv"))
+cad_df_3161 <- read_csv(here("data/processed/cflux_admin_dist_pixel_500m_df_3161.csv"))
 
 
 # Explore -----------------------------------------------------------------
@@ -70,111 +71,6 @@ ggsave(here("output/figures/single_dist_type_plot.png"),
 ## Does order matter when both one SR and one NSR occur during the years of 
 ## record?
 
-## Select cells where one SR and one NSR occurred
-both_cells <- NSR_SR_01_19_df %>% 
-  filter(dist_01_19 == "Both") %>% 
-  pull(cell)
-
-## Create column with year of NSR dist
-nsr_year <- sr_dist_raster_df[[1]] %>% 
-  filter(cell %in% both_cells) %>% 
-  rowwise() %>%
-  mutate(mak=which.max(c_across(starts_with("count"))),
-         mak = mak+2000) %>% 
-  select(cell, x, y, nsr_dist_year = mak)
-view(nsr_year)
-
-## Create column with year of SR dist
-sr_year <- sr_dist_raster_df[[2]] %>% 
-  filter(cell %in% both_cells) %>% 
-  rowwise() %>%
-  mutate(mak=which.max(c_across(starts_with("count"))),
-         mak = mak+2000) %>% 
-  select(cell, x, y, sr_dist_year = mak)
-
-## Select cells where two NSR dist occurred
-nsr2_cells <- NSR_SR_01_19_df %>% 
-  filter(dist_01_19 == "NSR2") %>% 
-  pull(cell)
-
-## Create column with year of first and second NSR dist 
-nsr2_year <- sr_dist_raster_df[[1]] %>% 
-  filter(cell %in% nsr2_cells) %>% 
-  rowwise() %>%
-  mutate(max_year = which.max(c_across(starts_with("count"))),
-         max_year = max_year+2000,
-         min_year = which.min(c_across(starts_with("count"))),
-         min_year = min_year+2000) %>% 
-  select(cell, x, y, 
-         first_nsr_dist_year = min_year, 
-         sec_nsr_dist_year = max_year)
-
-## Select cells where two SR dist occurred
-sr2_cells <- NSR_SR_01_19_df %>% 
-  filter(dist_01_19 == "SR2") %>% 
-  pull(cell)
-
-## Create column with year of first and second SR dist 
-sr2_year <- sr_dist_raster_df[[2]] %>% 
-  filter(cell %in% sr2_cells) %>% 
-  rowwise() %>%
-  mutate(max_year = which.max(c_across(starts_with("count"))),
-         max_year = max_year+2000,
-         min_year = which.min(c_across(starts_with("count"))),
-         min_year = min_year+2000) %>% 
-  select(cell, x, y, 
-         first_sr_dist_year = min_year, 
-         sec_sr_dist_year = max_year)
-
-## Calculate difference between first and second dist year and 
-## combine 2 SR and 2 NSR dfs 
-two_dist_year <- bind_rows(nsr2_year %>% 
-                             ungroup() %>% 
-                             mutate(diff = sec_nsr_dist_year-first_nsr_dist_year,
-                                    order = "NSR_NSR")  %>% 
-                             select(cell, x, y, diff, order),
-                           sr2_year %>% 
-                             ungroup() %>% 
-                             mutate(diff = sec_sr_dist_year-first_sr_dist_year,
-                                    order = "SR_SR") %>% 
-                             select(cell, x, y, diff, order))
-
-## combine dfs for Both dist in time series
-dist_year <- left_join(nsr_year, sr_year) %>% 
-  ## calc differenc in nsr and sr years
-  ## negative means NSR was first
-  mutate(diff = nsr_dist_year-sr_dist_year, 
-         order = if_else(diff < 0, "NSR_SR", "SR_NSR")) %>% 
-  ## select cells to match 2 same type dist data
-  select(cell, x, y, diff, order) %>%
-  ##bind 2 same dist data
-  bind_rows(two_dist_year)
-
-write_csv(dist_year, here("data/processed/dist_order_year_df_3161.csv"))
-
-dist_year %>% group_by(order) %>% tally
-
-dist_year %>% group_by(abs(diff)) %>% tally
-
-dist_year <- read_csv(here("data/processed/dist_order_year_df.csv"))
-dist_year_3161 <- read_csv(here("data/processed/dist_order_year_df_3161.csv"))
-
-two_dist_df <- NSR_SR_01_19_df %>% 
-  left_join(., dist_year_3161) %>%
-  mutate(order = case_when(dist_01_19 == "ND" ~ "ND",
-                           dist_01_19 == "NSR" ~ "NSR",
-                           dist_01_19 == "NSR2" ~ "NSR_NSR",
-                           dist_01_19 == "SR" ~ "SR",
-                           dist_01_19 == "SR2" ~ "SR_SR",
-                           dist_01_19 == "Both" ~ order))
-
-two_dist_order_df <- cad_df_3161 %>% 
-  left_join(., two_dist_df)
-
-write_csv(two_dist_order_df, here("data/processed/two_dist_order_df.csv"))
-
-two_dist_order_df <- read_csv(here("data/processed/two_dist_order_df.csv"))
-
 two_dist_plot <- cad_df_3161 %>% 
   filter(!is.na(order)) %>% 
   group_by(order) %>% 
@@ -210,32 +106,30 @@ ggsave(here("output/figures/two_dist_plot.png"),
 
 ## Does the time between two disturbance events impact their C sink ability?
 
-mod_df <- two_dist_order_df %>% 
-  filter(!is.na(diff)) %>% 
-  mutate(diff = abs(diff)) %>% 
-  group_by(order)
+mod_df <- cad_df_3161 %>% 
+  filter(!is.na(year_between_dist))
 
 mod_df %>% 
   group_by(order) %>% tally()
 
 mod_df %>% 
-  group_by(diff) %>% tally()
+  group_by(year_between_dist) %>% tally()
 
 mod_df %>% 
-  group_by(diff, order) %>% tally() %>% view
+  group_by(year_between_dist, order) %>% tally() %>% view
 
 mod_df %>% 
   group_by(order) %>% 
-  summarise(max = max(diff), min = min(diff))
+  summarise(max = max(year_between_dist), min = min(year_between_dist))
 
 mod_df %>% 
-  filter(!is.na(diff)) %>% 
-  group_by(diff, order) %>% 
+  filter(!is.na(year_between_dist)) %>% 
+  group_by(year_between_dist, order) %>% 
   summarise(mean_c = mean(cflux_ha),
             sd_c = sd(cflux_ha),
             n_c = n(),
             se_c = sd_c/sqrt(n_c)) %>% 
-  ggplot(aes(x = diff, y = mean_c, fill = order)) + 
+  ggplot(aes(x = year_between_dist, y = mean_c, fill = order)) + 
   geom_col(width = 0.5, colour = "black",
            position = position_dodge(0.75)) + 
   geom_errorbar(aes(ymin = mean_c - se_c, ymax = mean_c + se_c),
@@ -248,6 +142,21 @@ mod_df %>%
         axis.text.x = element_markdown(),
         axis.title.y = element_markdown())
 
+
+mod_df %>% 
+  ggplot(aes(x = year_between_dist, ..scaled.., fill = order)) + 
+  geom_density(alpha = 0.4, colour = "black", bw = 0.7) + 
+  scale_y_continuous(expand = c(0,0)) + 
+  scale_x_continuous(expand = c(0,0)) + 
+  scale_fill_manual(name = "Disturbance order", 
+                      values = brewer.pal(4, "Set1"),
+                      labels = c("NSR\u2192NSR",
+                                 "NSR\u2192SR",
+                                 "SR\u2192NSR",
+                                 "SR\u2192SR")) + 
+  facet_wrap(~order) + 
+  theme_classic()
+
 library(mgcv)
 library(easystats)
 gam1 <- gam(cflux_ha ~ diff*order +  
@@ -256,7 +165,6 @@ gam1 <- gam(cflux_ha ~ diff*order +
             method = "REML", na.action = "na.fail")
 
 
-saveRDS(gam1, here("output/models/dist_type_order_diff_gam.rds"))
 saveRDS(gam1, here("output/models/dist_type_order_diff_gam_3161.rds"))
 
 gam1 <- readRDS(here("output/models/dist_type_order_diff_gam_3161.rds"))
@@ -301,18 +209,14 @@ estimate_means(gam1, at = c("order", "diff= c(0, 9, 18)")) %>%
 
 ## How does the history of disturbance impact C flux
 
-NSR_SR_df_periods <- full_join(NSR_SR_01_06_df, NSR_SR_07_12_df) %>% 
-  full_join(., NSR_SR_13_19_df) %>% 
-  unite(dist_pattern, c("dist_01_06", "dist_07_12", "dist_13_19"), 
-        sep = "_", remove = F)
-NSR_SR_df_periods %>% 
+cad_df_3161 %>% 
   filter(!grepl('Both|NA', dist_pattern)) %>% 
   group_by(dist_pattern) %>% tally() %>% view
 
 ### Recurring disturbances
 #### What effect does a disturbance of the same type occuring once in each 
 #### time period have on C flux? (i.e. NSR→ND→ND vs NSR→NSR→ND vs NSR→NSR→NSR)
-dist_pattern_df <- NSR_SR_df_periods %>% 
+c_dist_period_df <- cad_df_3161 %>% 
   mutate(dist_period = case_when(dist_pattern == "ND_ND_ND" ~ "ND_p0",
                                  dist_pattern == "NSR_ND_ND" ~ "NSR_p1",
                                  dist_pattern == "NSR_NSR_ND" ~ "NSR_p2",
@@ -320,23 +224,29 @@ dist_pattern_df <- NSR_SR_df_periods %>%
                                  dist_pattern == "SR_ND_ND" ~ "SR_p1",
                                  dist_pattern == "SR_SR_ND" ~ "SR_p2",
                                  dist_pattern == "SR_SR_SR" ~ "SR_p3",
+                                 TRUE ~ "remove"),
+         dist_type = case_when(dist_pattern == "ND_ND_ND" ~ "ND",
+                                 dist_pattern == "NSR_ND_ND" ~ "NSR",
+                                 dist_pattern == "NSR_NSR_ND" ~ "NSR",
+                                 dist_pattern == "NSR_NSR_NSR" ~ "NSR",
+                                 dist_pattern == "SR_ND_ND" ~ "SR",
+                                 dist_pattern == "SR_SR_ND" ~ "SR",
+                                 dist_pattern == "SR_SR_SR" ~ "SR",
+                                 TRUE ~ "remove"),
+         period_group = case_when(dist_pattern == "ND_ND_ND" ~ "p0",
+                                 dist_pattern == "NSR_ND_ND" ~ "p1",
+                                 dist_pattern == "NSR_NSR_ND" ~ "p2",
+                                 dist_pattern == "NSR_NSR_NSR" ~ "p3",
+                                 dist_pattern == "SR_ND_ND" ~ "p1",
+                                 dist_pattern == "SR_SR_ND" ~ "p2",
+                                 dist_pattern == "SR_SR_SR" ~ "p3",
                                  TRUE ~ "remove")) %>% 
   filter(dist_period != "remove") %>% 
-  select(cell, x, y, starts_with("dist")) %>% 
-  separate(dist_period, c("dist_type", "period_group"))
-
-dist_pattern_df %>% 
-  group_by(dist_type, period_group) %>% 
-  tally()
-
-c_dist_period_df <- cad_df_3161 %>% 
-  #select(-period) %>% 
-  left_join(., dist_pattern_df) %>% 
   filter(!is.na(dist_type))
 
-write_csv(c_dist_period_df, here("data/processed/c_dist_period_df.csv"))
-
-c_dist_period_df <- read_csv(here("data/processed/c_dist_period_df.csv"))
+c_dist_period_df %>% 
+  group_by(dist_type, period_group) %>% 
+  tally()
 
 c_dist_period_df %>% 
   group_by(dist_type, period_group) %>% 
@@ -458,7 +368,7 @@ ggsave(here("output/figures/dist_type_plot_recurr.png"),
 #### What effect does a disturbance of the same type occurring at different
 #### time periods have on C flux? (i.e. NSR→ND→ND vs ND→NSR→ND vs ND→ND→NSR)
 
-dist_pattern_df_single <- NSR_SR_df_periods %>% 
+c_dist_period_df_single <- cad_df_3161 %>% 
   mutate(dist_period = case_when(dist_pattern == "ND_ND_ND" ~ "ND_p0",
                                  dist_pattern == "NSR_ND_ND" ~ "NSR_p1",
                                  dist_pattern == "ND_NSR_ND" ~ "NSR_p2",
@@ -466,19 +376,25 @@ dist_pattern_df_single <- NSR_SR_df_periods %>%
                                  dist_pattern == "SR_ND_ND" ~ "SR_p1",
                                  dist_pattern == "ND_SR_ND" ~ "SR_p2",
                                  dist_pattern == "ND_ND_SR" ~ "SR_p3",
+                                 TRUE ~ "remove"),
+         dist_type = case_when(dist_pattern == "ND_ND_ND" ~ "ND",
+                                 dist_pattern == "NSR_ND_ND" ~ "NSR",
+                                 dist_pattern == "ND_NSR_ND" ~ "NSR",
+                                 dist_pattern == "ND_ND_NSR" ~ "NSR",
+                                 dist_pattern == "SR_ND_ND" ~ "SR",
+                                 dist_pattern == "ND_SR_ND" ~ "SR",
+                                 dist_pattern == "ND_ND_SR" ~ "SR",
+                                 TRUE ~ "remove"),
+         period_group = case_when(dist_pattern == "ND_ND_ND" ~ "p0",
+                                 dist_pattern == "NSR_ND_ND" ~ "p1",
+                                 dist_pattern == "ND_NSR_ND" ~ "p2",
+                                 dist_pattern == "ND_ND_NSR" ~ "p3",
+                                 dist_pattern == "SR_ND_ND" ~ "p1",
+                                 dist_pattern == "ND_SR_ND" ~ "p2",
+                                 dist_pattern == "ND_ND_SR" ~ "p3",
                                  TRUE ~ "remove")) %>% 
   filter(dist_period != "remove") %>% 
-  select(cell, x, y, starts_with("dist")) %>% 
-  separate(dist_period, c("dist_type", "period_group"))
-
-c_dist_period_df_single <- cad_df_3161 %>% 
-  #select(-period) %>% 
-  left_join(., dist_pattern_df_single) %>% 
   filter(!is.na(dist_type))
-
-write_csv(c_dist_period_df_single, here("data/processed/c_dist_period_df_single.csv"))
-
-c_dist_period_df_single <- read_csv(here("data/processed/c_dist_period_df_single.csv"))
 
 c_dist_period_df_single %>% 
   group_by(dist_type, period_group) %>% 
@@ -562,15 +478,21 @@ ggsave(here("output/figures/single_dist_timing_plot.png"),
 unique(two_dist_order_df$order)
 unique(two_dist_order_df$zone)
 
+cad_df_3161 %>% 
+  group_by(zone) %>% tally()
+
 ## Do the number of disturbance that occur in a pixel depend on management?
-two_dist_order_df %>% 
+cad_df_3161 %>% 
+  mutate(order = if_else(is.na(order), dist_01_19, order)) %>% 
   filter(!is.na(order)) %>% 
   mutate(dist_type = case_when(str_detect(order, "_") ~ "two",
                                order == "ND" ~ "none",
                                order == "NSR" | order == "SR" ~ "one"),
          zone_type = case_when(zone == "General Use Area" ~ "Unprotected",
                                zone == "Enhanced Management Area" | 
-                                 zone == "Indian Reserve" ~ "Semi-protected",
+                                 zone == "Indian Reserve" | 
+                                 zone == "Forest Reserve" | 
+                                 zone == "Wilderness Area" ~ "Semi-protected",
                                TRUE ~ "Protected")) %>% 
   group_by(zone_type, dist_type) %>% 
   tally() %>% 
@@ -590,66 +512,35 @@ two_dist_order_df %>%
                     labels = c("None", "One", "Two")) + 
   theme_classic()
 
-two_dist_order_df %>% 
+cad_df_3161 %>% 
+  mutate(order = if_else(is.na(order), dist_01_19, order)) %>%
   filter(!is.na(order)) %>% 
   mutate(dist_type = case_when(str_detect(order, "_") ~ "two",
                                order == "ND" ~ "none",
                                order == "NSR" | order == "SR" ~ "one"),
          zone_type = case_when(zone == "General Use Area" ~ "Unprotected",
                                zone == "Enhanced Management Area" | 
-                                 zone == "Indian Reserve" ~ "Semi-protected",
+                                 zone == "Indian Reserve" | 
+                                 zone == "Forest Reserve" | 
+                                 zone == "Wilderness Area" ~ "Semi-protected",
                                TRUE ~ "Protected")) %>% 
   group_by(zone_type, dist_type) %>% 
   tally() %>% 
   mutate(freq = n/sum(n))
 
 
-prop_df <- two_dist_order_df %>% 
+prop_df <- cad_df_3161 %>% 
+  mutate(order = if_else(is.na(order), dist_01_19, order)) %>%
   filter(!is.na(order)) %>% 
   mutate(dist_type = case_when(str_detect(order, "_") ~ "two",
                                order == "ND" ~ "none",
                                order == "NSR" | order == "SR" ~ "one"),
          zone_type = case_when(zone == "General Use Area" ~ "Unprotected",
-                               TRUE ~ "Protected"))
-
-
-
-
-two_dist_order_df %>% 
-  filter(!is.na(order)) %>% 
-  mutate(dist_type = case_when(order == "NSR_SR" | 
-                                 order == "SR_NSR" ~ "mixed",
-                               order == "NSR_NSR" |
-                                 order == "SR_SR" ~ "same",
-                               order == "ND" ~ "none",
-                               order == "NSR" | order == "SR" ~ "one"),
-         zone_type = case_when(zone == "General Use Area" ~ "Unprotected",
                                zone == "Enhanced Management Area" | 
-                                 zone == "Indian Reserve" ~ "Semi-protected",
-                               TRUE ~ "Protected")) %>% 
-  group_by(zone_type, dist_type) %>% 
-  tally() %>% 
-  mutate(freq = n/sum(n),
-         zone_type = factor(zone_type, levels = c("Unprotected", 
-                                                  "Semi-protected",
-                                                  "Protected")),
-         dist_type = factor(dist_type, levels = c("none", 
-                                                  "one",
-                                                  "single",
-                                                  "mixed"))) %>% 
-  ggplot(aes(x = zone_type, y = freq, fill = dist_type)) + 
-  geom_col(colour = "black", 
-           position = position_dodge(0.9)) + 
-  scale_y_continuous(name = "Frequency",
-                     limits = c(0, 0.6),
-                     breaks = seq(0, 0.6, 0.1),
-                     expand = c(0,0)) +
-  scale_fill_manual(name = "No. of disturbances",
-                    values = rev(brewer.pal(4, "Set1")),
-                    labels = c("None", "One", "Single", "Mixed")) + 
-  theme_classic()
-
-
+                                 zone == "Indian Reserve" | 
+                                 zone == "Forest Reserve" | 
+                                 zone == "Wilderness Area" ~ "Semi-protected",
+                               TRUE ~ "Protected"))
 
 
 
@@ -657,7 +548,7 @@ two_dist_order_df %>%
 boot_prop <- function(df) {
   sub <- df %>% 
     group_by(zone_type) %>% 
-    sample_n(100)
+    sample_n(1000)
   
   out <- sub %>% 
     group_by(zone_type, dist_type) %>% 
@@ -681,7 +572,8 @@ boot_freq %>%
   geom_errorbar(aes(ymin = q_0.025, ymax = q_0.975), 
                 position = position_dodge(0.9), width =0.25) + 
   scale_y_continuous(name = "Median proportion",
-                     limits = c(0, 1),
+                     limits = c(0, 0.6),
+                     breaks = seq(0,0.6, 0.2),
                      expand = c(0,0)) + 
   xlab("") + 
   theme_classic() + 

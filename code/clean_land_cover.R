@@ -21,6 +21,10 @@ aou_3161 <- vect(here("data/processed/aou_3161.gpkg"))
 aou_rast_3161 <- rast(here("data/processed/aou_rast_250_3161.tif"))
 aou_lakes_rast_3161 <- rast(here("data/processed/aou_lakes_rast_250m_3161.tif"))
 
+land_cover_500_3161 <- rast(here("data/processed/land_cover_500_3161.tif"))
+aou_3161 <- vect(here("data/processed/aou_3161.gpkg"))
+aou_rast_3161_500 <- rast(here("data/processed/aou_rast_500_3161.tif"))
+aou_lakes_rast_3161_500 <- rast(here("data/processed/aou_lakes_rast_500m_3161.tif"))
 # Clean C-flux ------------------------------------------------------------
 
 
@@ -36,10 +40,22 @@ land_cover_aou_250_3161 <- land_cover_250_3161 %>%
 
 plot(land_cover_aou_250_3161)
 
+land_cover_aou_500_3161 <- land_cover_500_3161 %>% 
+  terra::crop(., aou_3161) %>%
+  # mask lakes 
+  terra::mask(., aou_lakes_rast_3161_500) %>% 
+  # mask values outside aou
+  terra::mask(., aou_rast_3161_500) #%>% 
+# mask admin zone not in study (e.g. Far north protected)
+#terra::mask(., admin_rast_30)
+
+plot(land_cover_aou_500_3161)
+
 # Save output -------------------------------------------------------------
 
 
 writeRaster(land_cover_aou_250_3161, here("data/processed/land_cover_aou_250_3161.tif"), overwrite = T)
 
+writeRaster(land_cover_aou_500_3161, here("data/processed/land_cover_aou_500_3161.tif"), overwrite = T)
 
 

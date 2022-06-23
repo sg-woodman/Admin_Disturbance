@@ -19,6 +19,10 @@ library(terra)
 cflux_250_ha <- rast(here("data/processed/aou_cflux_250m_ha.tif"))
 cflux_30_ha <- rast(here("data/raw/aou_cflux_per_ha_30.tif"))
 
+fri_overstory <- rast("/Users/sam/Documents/Pheno_Disturbacne/data/processed/fri_overstory_rast_250.tif")
+fri_understory <- rast("/Users/sam/Documents/Pheno_Disturbacne/data/processed/fri_understory_rast_250.tif")
+
+
 ## Vectors
 aou <- vect(here("data/raw/AoU.gpkg"))
 admin_poly <- vect(here("data/processed/admin_zones.gpkg"))
@@ -36,6 +40,10 @@ cflux_250_ha_3161 <- project(cflux_250_ha, epsg_3161)
 
 cflux_30_ha_3161 <- project(cflux_30_ha, epsg_3161)
 
+fri_overstory_3161 <- project(fri_overstory, epsg_3161)
+
+fri_understory_3161 <- project(fri_understory, epsg_3161)
+
 aou_3161 <- project(aou, epsg_3161)
 
 aou_lakes_3161 <- project(aou_lakes, epsg_3161)
@@ -52,6 +60,12 @@ writeRaster(cflux_250_ha_3161, here("data/processed/aou_cflux_250m_ha_3161.tif")
             overwrite = T)
 
 writeRaster(cflux_30_ha_3161, here("data/processed/aou_cflux_30m_ha_3161.tif"),
+            overwrite = T)
+
+writeRaster(fri_overstory_3161, here("data/processed/fri_overstory_3161.tif"),
+            overwrite = T)
+
+writeRaster(fri_understory_3161, here("data/processed/fri_understory_3161.tif"),
             overwrite = T)
 
 writeVector(aou_3161, here("data/processed/aou_3161.gpkg"))

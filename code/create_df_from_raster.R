@@ -8,10 +8,25 @@ library(terra)
 admin_rast_250 <- rast(here("data/processed/admin_zone_rast_250m.tif"))
 cflux_250_ha <- rast(here("data/processed/aou_cflux_250m_ha.tif"))
 
+
 # project from lat lon to metres
 admin_rast_250_3161 <- rast(here("data/processed/admin_zone_rast_250m_3161.tif"))
 cflux_250_aou_3161 <- rast(here("data/processed/cflux_per_ha_250_aou_3161.tif"))
 land_cover_aou_250_3161 <- rast(here("data/processed/land_cover_aou_250_3161.tif"))
+
+admin_rast_500_3161 <- rast(here("data/processed/admin_zone_rast_500m_3161.tif"))
+cflux_500_aou_3161 <- rast(here("data/processed/cflux_per_ha_500_aou_3161.tif"))
+land_cover_aou_500_3161 <- rast(here("data/processed/land_cover_aou_500_3161.tif"))
+ecoprovince_rast_3161_500 <- rast(here("data/processed/ecoprovince_rast_500m_3161.tif"))
+mean_t_500_aou_3161 <- rast(here("data/processed/mean_t_500_aou_3161.tif"))
+human_footprint_500_aou_3161 <- rast(here("data/processed/human_footprint_500_aou_3161.tif"))
+harvest_500_aou_3161 <- rast(here("data/processed/harvest_500_aou_3161.tif"))
+evi_500_aou_3161 <- rast(here("data/processed/evi_500_aou_3161.tif"))
+evi_sen_500_aou_3161 <- rast(here("data/processed/evi_sen_500_aou_3161.tif"))
+overstory_500_aou_3161 <- rast(here("data/processed/overstory_500_aou_3161.tif"))
+understory_500_aou_3161 <- rast(here("data/processed/eoverstory_500_aou_3161.tif"))
+catch_rast_3161_500 <- rast(here("data/processed/catchment_rast_500m_3161.tif"))
+
 
 # distinct dist group
 ind_dist_names <- list.files(path = here("data/processed/Annual_Raster/"))
@@ -19,10 +34,12 @@ ind_dist_names <- list.files(path = here("data/processed/Annual_Raster/"))
 # SR vs NSR 
 sr_dist_names <- unlist(as.list(c("SR", "NSR")))
 sr_dist_names_3161 <- unlist(as.list(c("SR_3161", "NSR_3161")))
+sr_dist_names_3161_500 <- unlist(as.list(c("SR_3161_500", "NSR_3161_500")))
 
 # All dist
 all_dist_names <- unlist(as.list(c("All_Dist")))
 all_dist_names_3161 <- unlist(as.list(c("All_Dist_3161")))
+all_dist_names_3161_500 <- unlist(as.list(c("All_Dist_3161_500")))
 
 
 # Functions ---------------------------------------------------------------
@@ -86,6 +103,32 @@ write_annual_cell_dist_3161 <- function(DIST) {
   
 }
 
+write_annual_cell_dist_3161_500 <- function(DIST) {
+  f_list <- list.files(path = here("data/processed/Annual_Raster/", paste0(DIST), "/"),
+                       pattern = "*.tif",
+                       full.names = T)
+  
+  f_names <- list.files(path = here("data/processed/Annual_Raster/", paste0(DIST), "/"),
+                        pattern = "*.tif",
+                        full.names = F) %>% 
+    map(., ~str_replace(., "_500_3161m.tif", "")) %>% 
+    map(., ~str_replace(., "3161_500_PA", "")) %>% 
+    map(., ~str_replace(., "^[a-zA-Z_]*", "count_"))
+  
+  out <- f_list %>% 
+    map(rast) %>% 
+    map(., as.data.frame, xy = T, cells = T) %>% 
+    map2(.y = f_names, ~ change_colname(.x, .y)) %>% 
+    reduce(full_join, by = c("cell", "x", "y"))# %>% 
+  # mutate(dist_count = rowSums(across(starts_with("count")))) %>% 
+  # dplyr::select(cell, x, y, dist_count) %>% 
+  # rename({{DIST}} := dist_count)
+  
+  #return(out)
+  write_csv(out, 
+            here(paste0("data/processed/Annual_dist_pixel_df/", DIST, ".csv")))
+  
+}
 
 
 # Convert raster to DF ----------------------------------------------------
@@ -97,6 +140,19 @@ admin_250_df_3161 <- as.data.frame(admin_rast_250_3161, cells = T, xy = T)
 cflux_250_df_3161 <- as.data.frame(cflux_250_aou_3161, cells = T, xy = T)
 lc_250_df_3161 <- as.data.frame(land_cover_aou_250_3161, cells = T, xy = T)
 
+admin_500_df_3161 <- as.data.frame(admin_rast_500_3161, cells = T, xy = T)
+cflux_500_df_3161 <- as.data.frame(cflux_500_aou_3161, cells = T, xy = T)
+lc_500_df_3161 <- as.data.frame(land_cover_aou_500_3161, cells = T, xy = T)
+ecoprov_500_df_3161 <- as.data.frame(ecoprovince_rast_3161_500, cells = T, xy = T)
+meanT_500_df_3161 <- as.data.frame(mean_t_500_aou_3161, cells = T, xy = T)
+human_500_df_3161 <- as.data.frame(human_footprint_500_aou_3161, cells = T, xy = T)
+harvest_500_df_3161 <- as.data.frame(harvest_500_aou_3161, cells = T, xy = T)
+evi_500_df_3161 <- as.data.frame(evi_500_aou_3161, cells = T, xy = T)
+evi_sen_500_df_3161 <- as.data.frame(evi_sen_500_aou_3161, cells = T, xy = T) %>% 
+  rename(evi_sen_slope = evi_1, evi_offset = evi_2)
+overstory_500_df_3161 <- as.data.frame(overstory_500_aou_3161, cells = T, xy = T)
+understory_500_df_3161 <- as.data.frame(understory_500_aou_3161, cells = T, xy = T)
+catch_500_df_3161 <- as.data.frame(catch_rast_3161_500, cells = T, xy = T)
 
 ## Save dist raster as df
 sr_dist_names %>% 
@@ -108,9 +164,28 @@ sr_dist_names_3161 %>%
 all_dist_names_3161 %>% 
   walk(write_annual_cell_dist_3161) 
 
+sr_dist_names_3161_500 %>% 
+  walk(write_annual_cell_dist_3161_500) 
+
+all_dist_names_3161_500 %>% 
+  walk(write_annual_cell_dist_3161_500) 
+
 write_csv(admin_250_df_3161, here("data/processed/admin_250_3161_df.csv"))
 write_csv(cflux_250_df_3161, here("data/processed/cflux_250_3161_df.csv"))
 write_csv(lc_250_df_3161, here("data/processed/landcover_250_3161_df.csv"))
+
+write_csv(admin_500_df_3161, here("data/processed/admin_500_3161_df.csv"))
+write_csv(cflux_500_df_3161, here("data/processed/cflux_500_3161_df.csv"))
+write_csv(lc_500_df_3161, here("data/processed/landcover_500_3161_df.csv"))
+write_csv(ecoprov_500_df_3161, here("data/processed/ecoprovince_500_3161_df.csv"))
+write_csv(meanT_500_df_3161, here("data/processed/meanT_500_3161_df.csv"))
+write_csv(human_500_df_3161, here("data/processed/human_500_df_3161.csv"))
+write_csv(harvest_500_df_3161, here("data/processed/harvest_500_df_3161.csv"))
+write_csv(evi_500_df_3161, here("data/processed/evi_500_df_3161.csv"))
+write_csv(evi_sen_500_df_3161, here("data/processed/evi_sen_500_df_3161.csv"))
+write_csv(overstory_500_df_3161, here("data/processed/overstory_500_df_3161.csv"))
+write_csv(understory_500_df_3161, here("data/processed/understory_500_df_3161.csv"))
+write_csv(catch_500_df_3161, here("data/processed/catch_500_3161_df.csv"))
 
 
 ## Read dist raster df 
@@ -125,7 +200,16 @@ all_dist_raster_df <- list.files(path = here("data/processed/Annual_dist_pixel_d
                                 full.names = T) %>% 
   map_df(read_csv)
   
+sr_dist_raster_df <- list.files(path = here("data/processed/Annual_dist_pixel_df"),
+                                pattern = "*SR_3161_500.csv", 
+                                full.names = T) %>% 
+  map(read_csv) %>% 
+  set_names(list("NSR", "SR"))
 
+all_dist_raster_df <- list.files(path = here("data/processed/Annual_dist_pixel_df"),
+                                 pattern = "*All_Dist_3161_500.csv", 
+                                 full.names = T) %>% 
+  map_df(read_csv)
 
 # Disturbance summaries ---------------------------------------------------
 
@@ -272,7 +356,6 @@ NSR_SR_df_periods <- full_join(NSR_SR_01_06_df, NSR_SR_07_12_df) %>%
 
 write_csv(NSR_SR_df_periods, here("data/processed/nsr_sr_periods_df.csv"))
 
-
 ## Calculate the order and years between two disturbances
 ## Select cells where one SR and one NSR occurred
 both_cells <- NSR_SR_01_19_df %>% 
@@ -360,18 +443,60 @@ write_csv(dist_year, here("data/processed/dist_order_year_df_3161.csv"))
 
 dist_year %>% group_by(order) %>% tally
 
-dist_year %>% group_by(abs(diff)) %>% tally
+dist_year %>% group_by(abs(year_between_dist)) %>% tally
+
+## Year of most recent dist
+## 
+dist_rast_df_long <- all_dist_raster_df %>% 
+  rename_with(.fn = ~ str_replace(.x, "count_", ""),
+              .cols = starts_with("count_")) %>% 
+  pivot_longer(cols = 4:22, names_to = "year", values_to = "dist")
+
+most_recent_dist <- dist_rast_df_long %>% 
+  filter(dist != 0) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  group_by(cell) %>% 
+  slice(which.max(year)) %>% 
+  mutate(yrs_since_recent_dist = 2019-year)
+
+most_recent_dist %>% 
+  ggplot() + 
+  geom_histogram(aes(x = year), binwidth = 1)
+
+most_recent_dist %>% 
+  group_by(year) %>% 
+  tally
 
 ## Create dist df
-
 dist_df <- all_dist_raster_df %>% 
   select(cell, x, y) %>% 
   left_join(., NSR_SR_01_19_df) %>% 
   left_join(., NSR_SR_df_periods) %>% 
-  left_join(., dist_year_3161)
+  left_join(., dist_year)
 
 write_csv(dist_df, here("data/processed/dist_250_3161_df.csv"))
 
+NSR_SR_01_19_df <- read_csv(here("data/processed/nsr_sr_01_19_df.csv"))
+NSR_SR_df_periods <- read_csv(here("data/processed/nsr_sr_periods_df.csv"))
+dist_year_3161 <- read_csv(here("data/processed/dist_order_year_df_3161.csv"))
+
+dist_df_500 <- all_dist_raster_df %>% 
+  select(cell, x, y) %>% 
+  left_join(., NSR_SR_01_19_df %>% 
+              dplyr::select(-c(x,y))) %>% 
+  left_join(., NSR_SR_df_periods %>% 
+              dplyr::select(-c(x,y))) %>% 
+  left_join(., dist_year_3161 %>% 
+              dplyr::select(-c(x,y))) %>% 
+  left_join(., most_recent_dist %>% 
+              dplyr::select(cell, yrs_since_recent_dist)) %>% 
+  mutate(yrs_since_recent_dist = replace_na(yrs_since_recent_dist, 19))
+
+dist_df %>% 
+  group_by(dist_01_19, yrs_since_recent_dist) %>% tally %>% view
+
+
+write_csv(dist_df_500, here("data/processed/dist_500_3161_df.csv"))
 
 ### Assess data coverage of period groups
 bind_cols(NSR_SR_01_06_df %>% 
